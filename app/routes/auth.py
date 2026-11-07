@@ -11,9 +11,9 @@ auth_bp = Blueprint('auth', __name__)
 def signup():
     data = request.get_json(silent=True)
 
-    if not data:
+    if not isinstance(data, dict) or not data:
         return jsonify({
-            "error": "Invalid or Missing JSON payload"
+            "error": "Invalid or missing JSON payload"
         }), 400
 
     username = data.get("username")
@@ -52,9 +52,9 @@ def signup():
 def login():
     data = request.get_json(silent=True)
 
-    if not data:
+    if not isinstance(data, dict) or not data:
         return jsonify({
-            "error": "Invalid or Missing JSON payload"
+            "error": "Invalid or missing JSON payload"
         }), 400
 
     email = data.get("email")
