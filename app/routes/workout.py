@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from app.extensions import db
 from datetime import datetime
-from app.models import Workout
+from app.models import Workouts
 
 workout_bp = Blueprint('workout', __name__)
 
@@ -27,7 +27,7 @@ def create_workout():
             "error": "Missing required fields"
         }), 400
 
-    existing_workout = Workout.query.filter_by(
+    existing_workout = Workouts.query.filter_by(
         user_id=user_id,
         title=title,
         schedule_at=schedule_at
@@ -38,7 +38,7 @@ def create_workout():
             "error": "Workout already exists"
         }), 409
 
-    new_workout = Workout(
+    new_workout = Workouts(
         user_id=user_id,
         title=title,
         schedule_at=schedule_at
@@ -59,13 +59,14 @@ def get_workouts():
     limit = request.args.get('limit', 10, type=int)
 
     calculate_offset = (page - 1) * limit
-    total_count = Workout.query.count()
-    records = Workout.query.offset(calculate_offset).limit(limit).all()
+    total_count = Workouts.query.count()
+    records = Workouts.query.offset(calculate_offset).limit(limit).all()
 
     return jsonify({
         "Workouts": [
             {
                 "id": workouts.id,
+                "user_id": workouts.user_id,
                 "title":  workouts.title,
                 "schedule_at": workouts.schedule_at,
                 "status": workouts.status,
@@ -76,4 +77,68 @@ def get_workouts():
         "page": page,
         "limit": limit,
         "total": total_count
+    }), 200
+
+@workout_bp.route('/workouts/<int:id>', methods=['GET'])
+@jwt_required()
+def get_workout_by_id(id):
+
+    data = Workouts.query.filter_by(id=id).first()
+
+    if not data:
+        return jsonify({
+            "error": "Workout not found"
+        }), 404
+
+    return jsonify({
+        "id": data.id,
+        "user_id": data.user_id,
+        "title": data.title,
+        "schedule_at": data.schedule_at,
+        "status": data.status,
+        "created_at": data.created_at.isoformat() if data.created_at else None,
+        "updated_at": data.updated_at.isoformat() if data.updated_at else None,
+    }), 200
+
+@workout_bp.route('/workouts/<int:id>', methods=['PUT'])
+@jwt_required()
+def update_workout(id):
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict) or not data:
+        return jsonify({
+            "error": "Invalid or missing JSON payload"
+        }), 400
+
+    title = data.get('title')
+    schedule_at = datetime.fromisoformat(data.get('schedule_at'))
+
+    user_id = int(get_jwt_identity())
+
+    workout = Workouts.query.filter_by(id=id).first()
+
+    if not workout:
+        return jsonify({
+            "error": "Workout not found"
+        }), 404
+
+    if workout.user_id != user_id:
+        return jsonify({
+            "error": "Forbidden"
+        }), 403
+
+    workout.title = title
+    workout.schedule_at = schedule_at
+
+    db.session.commit()
+
+    return jsonify({
+        "id": workout.id,
+        "user_id": workout.user_id,
+        "title": workout.title,
+        "schedule_at": workout.schedule_at,
+        "status": workout.status,
+        "created_at": workout.created_at.isoformat() if workout.created_at else None,
+        "updated_at": workout.updated_at.isoformat() if workout.updated_at else None,
     }), 200
