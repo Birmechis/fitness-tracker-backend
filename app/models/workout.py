@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from app.extensions import db
 
-class Workout(db.Model):
+class Workouts(db.Model):
 
     __tablename__ = 'workouts'
 
@@ -18,6 +18,11 @@ class Workout(db.Model):
         db.DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc)
+    )
+
+    users = db.relationship(
+        "Users",
+        back_populates="workouts",
     )
 
     def __repr__(self):
