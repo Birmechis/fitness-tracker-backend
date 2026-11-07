@@ -14,13 +14,24 @@ def create_workout():
 
     user_id = get_jwt_identity()
 
-    if not data:
+    if not isinstance(data, dict) or not data:
         return jsonify({
             "error": "Invalid or missing JSON payload"
         }), 400
 
     title = data.get('title')
-    schedule_at = datetime.fromisoformat(data.get('schedule_at'))
+
+    if not isinstance(title, str) or not title.strip():
+        return jsonify({
+            "error": "Title must be a non-empty string"
+        }), 400
+
+    try:
+        schedule_at = datetime.fromisoformat(data.get('schedule_at'))
+    except (ValueError, TypeError):
+        return jsonify({
+            "error": "Invalid schedule_at format. Use ISO format"
+        }), 400
 
     if title is None or schedule_at is None:
         return jsonify({
@@ -112,7 +123,18 @@ def update_workout(id):
         }), 400
 
     title = data.get('title')
-    schedule_at = datetime.fromisoformat(data.get('schedule_at'))
+
+    if not isinstance(title, str) or not title.strip():
+        return jsonify({
+            "error": "Title must be a non-empty string"
+        }), 400
+
+    try:
+        schedule_at = datetime.fromisoformat(data.get('schedule_at'))
+    except (ValueError, TypeError):
+        return jsonify({
+            "error": "Invalid schedule_at format. Use ISO format"
+        }), 400
 
     user_id = int(get_jwt_identity())
 
