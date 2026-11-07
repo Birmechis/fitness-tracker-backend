@@ -1,2 +1,2 @@
-from .user import Users
-from .workout import Workout
+from app.models.user import Users
+from app.models.workout import Workouts
