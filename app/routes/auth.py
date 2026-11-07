@@ -1,9 +1,7 @@
 from sqlite3 import IntegrityError
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token
-from jinja2.runtime import identity
-
-from app.models.user import Users
+from app.models import Users
 from app.extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -32,7 +30,7 @@ def signup():
     new_user = Users(
         username=username,
         email=email,
-        password=hashed_password
+        password_hash=hashed_password
     )
 
     try:
@@ -74,7 +72,7 @@ def login():
             "error": "User not found"
         }), 404
 
-    if not check_password_hash(user.password, password):
+    if not check_password_hash(user.password_hash, password):
         return jsonify({
             "error": "Incorrect password"
         }), 400
