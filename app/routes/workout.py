@@ -94,21 +94,21 @@ def get_workouts():
 @jwt_required()
 def get_workout_by_id(id):
 
-    data = Workouts.query.filter_by(id=id).first()
+    workout = Workouts.query.filter_by(id=id).first()
 
-    if not data:
+    if not workout:
         return jsonify({
             "error": "Workout not found"
         }), 404
 
     return jsonify({
-        "id": data.id,
-        "user_id": data.user_id,
-        "title": data.title,
-        "schedule_at": data.schedule_at,
-        "status": data.status,
-        "created_at": data.created_at.isoformat() if data.created_at else None,
-        "updated_at": data.updated_at.isoformat() if data.updated_at else None,
+        "id": workout.id,
+        "user_id": workout.user_id,
+        "title": workout.title,
+        "schedule_at": workout.schedule_at,
+        "status": workout.status,
+        "created_at": workout.created_at.isoformat() if workout.created_at else None,
+        "updated_at": workout.updated_at.isoformat() if workout.updated_at else None,
     }), 200
 
 @workout_bp.route('/workouts/<int:id>', methods=['PUT'])
@@ -163,4 +163,22 @@ def update_workout(id):
         "status": workout.status,
         "created_at": workout.created_at.isoformat() if workout.created_at else None,
         "updated_at": workout.updated_at.isoformat() if workout.updated_at else None,
+    }), 200
+
+@workout_bp.route('/workouts/<int:id>', methods=['DELETE'])
+@jwt_required()
+def delete_workout(id):
+
+    workout = Workouts.query.filter_by(id=id).first()
+
+    if not workout:
+        return jsonify({
+            "error": "Workout not found"
+        }), 404
+
+    db.session.delete(workout)
+    db.session.commit()
+
+    return jsonify({
+        "msg": "Workout deleted successfully"
     }), 200
