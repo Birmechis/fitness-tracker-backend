@@ -26,5 +26,10 @@ class Exercises(db.Model):
         back_populates="exercises",
     )
 
+    workout_exercises = db.relationship(
+        "WorkoutExercises",
+        back_populates="exercises",
+    )
+
     def __repr__(self):
         return f"Exercise: {self.name}, {self.description}"
