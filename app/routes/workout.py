@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from app.extensions import db
 from datetime import datetime
-from app.models import Workouts
+from app.models import Workouts, WorkoutExercises
 
 workout_bp = Blueprint('workout', __name__)
 
@@ -182,3 +182,143 @@ def delete_workout(id):
     return jsonify({
         "msg": "Workout deleted successfully"
     }), 200
+
+@workout_bp.route('/workouts/<int:workout_id>/exercises', methods=['POST'])
+@jwt_required()
+def add_exercise_to_workout(workout_id):
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict) or not data:
+        return jsonify({
+            "error": "Invalid or missing JSON payload"
+        }), 400
+
+    user_id = get_jwt_identity()
+
+    workout = Workouts.query.filter_by(
+        workout_id=workout_id,
+        user_id=user_id
+    ).first()
+
+    if not workout:
+        return jsonify({
+            "error": "Workout not found"
+        }), 404
+
+    exercise_id = data.get('exercise_id')
+    sets = data.get('sets')
+    reps = data.get('reps')
+    completed = data.get('completed')
+
+    try:
+        exercise = int(exercise_id)
+        if exercise <= 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({"error": "exercise_id must be a positive integer"}), 400
+
+    if type(sets) is not int or sets <= 0:
+        return jsonify({
+            "error": "sets must be a positive integer"
+        }), 400
+
+    if type(reps) is not int or reps <= 0:
+        return jsonify({
+            "error": "reps must be a positive integer"
+        }), 400
+
+    if type(completed) is not bool:
+        return jsonify({
+            "error": "completed must be a boolean"
+        }), 400
+
+    existing_workout_exercise = WorkoutExercises.query.filter_by(workout_id=workout_id).first()
+
+    if existing_workout_exercise:
+        return jsonify({
+            "error": "Workout exercise already exists"
+        }), 409
+
+    new_workout_exercise = WorkoutExercises(
+        workout_id=workout_id,
+        exercise_id=exercise_id,
+        sets=sets,
+        reps=reps,
+        completed=completed
+    )
+
+    db.session.add(new_workout_exercise)
+    db.session.commit()
+
+    return jsonify({
+        "id": new_workout_exercise.id,
+        "exercise_id": new_workout_exercise.exercise_id,
+        "workout_id": new_workout_exercise.workout_id,
+        "sets": new_workout_exercise.sets,
+        "reps": new_workout_exercise.reps,
+        "completed": new_workout_exercise.completed
+    }), 201
+
+@workout_bp.route('/workouts/<int:workout_id>/exercise/<int:we_id>', methods=['PATCH'])
+@jwt_required()
+def update_workout(workout_id, we_id):
+
+      data = request.get_json(silent=True)
+
+      if not isinstance(data, dict) or not data:
+        return jsonify({
+            "error": "Invalid or missing JSON payload"
+        }), 400
+
+      sets = data.get('sets')
+      reps = data.get('reps')
+      completed = data.get('completed')
+
+      user_id = get_jwt_identity()
+
+      workout = Workouts.query.filter_by(
+          workout_id=workout_id,
+          user_id=user_id
+      ).first()
+
+      if not workout:
+          return jsonify({
+            "error": "Workout not found"
+          }), 404
+
+      workout_exercise = WorkoutExercises.query.filter_by(
+          workout_id=workout_id,
+          id=we_id
+      ).first()
+
+      if not workout_exercise:
+          return jsonify({
+              "error": "Exercise not found"
+          }), 404
+
+      if type(sets) is not int or sets <= 0:
+          return jsonify({
+              "error": "sets must be a positive integer"
+          }), 400
+
+      if type(reps) is not int or reps <= 0:
+          return jsonify({
+              "error": "reps must be a positive integer"
+          }), 400
+
+      if type(completed) is not bool:
+          return jsonify({
+              "error": "completed must be a boolean"
+          }), 400
+
+      db.session.commit()
+
+      return jsonify({
+          "message": "Workout exercise updated successfully",
+          "exercise": {
+              "sets": workout_exercise.sets,
+              "reps": workout_exercise.reps,
+              "completed": workout_exercise.completed
+          }
+      }), 200
