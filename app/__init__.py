@@ -12,9 +12,11 @@ def create_app():
 
     from app.routes.auth import auth_bp
     from app.routes.workout import workout_bp
+    from app.routes.exercise import exercise_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(workout_bp, url_prefix='/api')
+    app.register_blueprint(exercise_bp, url_prefix='/api')
 
     return app
 
