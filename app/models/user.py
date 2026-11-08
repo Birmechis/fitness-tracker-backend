@@ -16,5 +16,10 @@ class Users(db.Model):
         back_populates="users",
     )
 
+    exercises = db.relationship(
+        "Exercises",
+        back_populates="users",
+    )
+
     def __repr__(self):
         return f"User('{self.username}', '{self.email}')"
