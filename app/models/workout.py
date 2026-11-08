@@ -25,5 +25,11 @@ class Workouts(db.Model):
         back_populates="workouts",
     )
 
+    workout_exercises = db.relationship(
+        "WorkoutExercises",
+        back_populates="workouts",
+        cascade="all, delete-orphan"
+    )
+
     def __repr__(self):
         return f"Workout: {self.title}, {self.status}"
