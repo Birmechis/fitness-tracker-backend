@@ -312,6 +312,11 @@ def update_workout(workout_id, we_id):
               "error": "completed must be a boolean"
           }), 400
 
+      if workout_exercise.workouts.user_id != user_id:
+          return jsonify({
+              "error": "Forbidden"
+          }), 403
+
       db.session.commit()
 
       return jsonify({
@@ -322,3 +327,26 @@ def update_workout(workout_id, we_id):
               "completed": workout_exercise.completed
           }
       }), 200
+
+@workout_bp.route('/workouts/<int:workout_id>/exercise/<int:exercise_id>', methods=['DELETE'])
+@jwt_required()
+def delete_workout(workout_id, exercise_id):
+
+    user_id = get_jwt_identity()
+
+    workout_exercise = WorkoutExercises.query.filter_by(exercise_id=exercise_id, workout_id=workout_id).first()
+
+    if not workout_exercise:
+        return jsonify({
+            "error": "Exercise not found"
+        }), 404
+
+    if workout_exercise.workouts.user_id != user_id:
+        return jsonify({
+            "error": "Forbidden"
+        }), 403
+
+    db.session.delete(workout_exercise)
+    db.session.commit()
+
+    return '', 204
