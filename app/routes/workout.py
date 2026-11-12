@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from app.extensions import db
 from datetime import datetime
-from app.models import Workouts, WorkoutExercises
+from app.models import Workouts, WorkoutExercises, Exercises
 
 workout_bp = Blueprint('workout', __name__)
 
@@ -197,7 +197,7 @@ def add_exercise_to_workout(workout_id):
     user_id = get_jwt_identity()
 
     workout = Workouts.query.filter_by(
-        workout_id=workout_id,
+        id=workout_id,
         user_id=user_id
     ).first()
 
@@ -212,11 +212,19 @@ def add_exercise_to_workout(workout_id):
     completed = data.get('completed')
 
     try:
-        exercise = int(exercise_id)
-        if exercise <= 0:
+        exercise_id = int(exercise_id)
+        if exercise_id <= 0:
             raise ValueError
     except (ValueError, TypeError):
         return jsonify({"error": "exercise_id must be a positive integer"}), 400
+
+    exercise_record = Exercises.query.get(exercise_id)
+
+    if not exercise_record:
+        return jsonify({
+            "error": "Exercise not found"
+        }), 404
+
 
     if type(sets) is not int or sets <= 0:
         return jsonify({
@@ -233,7 +241,7 @@ def add_exercise_to_workout(workout_id):
             "error": "completed must be a boolean"
         }), 400
 
-    existing_workout_exercise = WorkoutExercises.query.filter_by(workout_id=workout_id).first()
+    existing_workout_exercise = WorkoutExercises.query.filter_by(workout_id=workout_id, exercise_id=exercise_id).first()
 
     if existing_workout_exercise:
         return jsonify({
@@ -260,9 +268,9 @@ def add_exercise_to_workout(workout_id):
         "completed": new_workout_exercise.completed
     }), 201
 
-@workout_bp.route('/workouts/<int:workout_id>/exercise/<int:we_id>', methods=['PATCH'])
+@workout_bp.route('/workouts/<int:workout_id>/exercises/<int:we_id>', methods=['PATCH'])
 @jwt_required()
-def update_workout(workout_id, we_id):
+def update_workout_exercise(workout_id, we_id):
 
       data = request.get_json(silent=True)
 
@@ -271,14 +279,15 @@ def update_workout(workout_id, we_id):
             "error": "Invalid or missing JSON payload"
         }), 400
 
+      exercise_id = data.get('exercise_id')
       sets = data.get('sets')
       reps = data.get('reps')
       completed = data.get('completed')
 
-      user_id = get_jwt_identity()
+      user_id = int(get_jwt_identity())
 
       workout = Workouts.query.filter_by(
-          workout_id=workout_id,
+          id=workout_id,
           user_id=user_id
       ).first()
 
@@ -291,6 +300,20 @@ def update_workout(workout_id, we_id):
           workout_id=workout_id,
           id=we_id
       ).first()
+
+      try:
+          exercise = int(exercise_id)
+          if exercise <= 0:
+              raise ValueError
+      except (ValueError, TypeError):
+          return jsonify({"error": "exercise_id must be a positive integer"}), 400
+
+      exercise = Exercises.query.get(exercise)
+
+      if not exercise:
+          return jsonify({
+              "error": "Exercise not found"
+          }), 404
 
       if not workout_exercise:
           return jsonify({
@@ -317,22 +340,28 @@ def update_workout(workout_id, we_id):
               "error": "Forbidden"
           }), 403
 
+      workout_exercise.exercise_id = exercise_id
+      workout_exercise.sets = sets
+      workout_exercise.reps = reps
+      workout_exercise.completed = completed
+
       db.session.commit()
 
       return jsonify({
           "message": "Workout exercise updated successfully",
           "exercise": {
+              "exercise_id": workout_exercise.exercise_id,
               "sets": workout_exercise.sets,
               "reps": workout_exercise.reps,
               "completed": workout_exercise.completed
           }
       }), 200
 
-@workout_bp.route('/workouts/<int:workout_id>/exercise/<int:exercise_id>', methods=['DELETE'])
+@workout_bp.route('/workouts/<int:workout_id>/exercises/<int:exercise_id>', methods=['DELETE'])
 @jwt_required()
-def delete_workout(workout_id, exercise_id):
+def delete_workout_exercise(workout_id, exercise_id):
 
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
 
     workout_exercise = WorkoutExercises.query.filter_by(exercise_id=exercise_id, workout_id=workout_id).first()
 
@@ -350,3 +379,26 @@ def delete_workout(workout_id, exercise_id):
     db.session.commit()
 
     return '', 204
+
+@workout_bp.route('/workouts_exercise', methods=['GET'])
+@jwt_required()
+def get_workout_exercises():
+
+    workout_exercises = WorkoutExercises.query.all()
+    if not workout_exercises:
+        return jsonify({
+            "error": "Workout exercises not found"
+        }), 404
+
+    result = []
+    for we in workout_exercises:
+        result.append({
+            "id": we.id,
+            "workout_id": we.workout_id,
+            "exercise_id": we.exercise_id,
+            "sets": we.sets,
+            "reps": we.reps,
+            "completed": we.completed
+        })
+
+    return jsonify({"workout_exercises": result}), 200
