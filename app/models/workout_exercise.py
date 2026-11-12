@@ -9,7 +9,7 @@ class WorkoutExercises(db.Model):
     exercise_id = db.Column(db.Integer, db.ForeignKey("exercises.id"), nullable=False)
     sets = db.Column(db.Integer)
     reps = db.Column(db.Integer)
-    completed = db.Column(db.Boolean, defualt=False)
+    completed = db.Column(db.Boolean, default=False)
 
     workouts = db.relationship(
         "Workouts",
