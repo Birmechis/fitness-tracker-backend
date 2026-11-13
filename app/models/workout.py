@@ -31,5 +31,11 @@ class Workouts(db.Model):
         cascade="all, delete-orphan"
     )
 
+    workout_comments = db.relationship(
+        "WorkoutComments",
+        back_populates="workouts",
+        cascade="all, delete-orphan"
+    )
+
     def __repr__(self):
         return f"Workout: {self.title}, {self.status}"
