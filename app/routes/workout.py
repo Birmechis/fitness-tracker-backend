@@ -3,6 +3,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from app.extensions import db
 from datetime import datetime
 from app.models import Workouts, WorkoutExercises, Exercises
+from app.models.workout_comment import WorkoutComments
 
 workout_bp = Blueprint('workout', __name__)
 
@@ -365,11 +366,6 @@ def delete_workout_exercise(workout_id, exercise_id):
 
     workout_exercise = WorkoutExercises.query.filter_by(exercise_id=exercise_id, workout_id=workout_id).first()
 
-    if not workout_exercise:
-        return jsonify({
-            "error": "Exercise not found"
-        }), 404
-
     if workout_exercise.workouts.user_id != user_id:
         return jsonify({
             "error": "Forbidden"
@@ -402,3 +398,92 @@ def get_workout_exercises():
         })
 
     return jsonify({"workout_exercises": result}), 200
+
+@workout_bp.route('/workouts/<int:workout_id>/comments', methods=['POST'])
+@jwt_required()
+def add_comment_to_workout(workout_id):
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict) or not data:
+        return jsonify({
+            "error": "Invalid or missing JSON payload"
+        }), 400
+
+    user_id = int(get_jwt_identity())
+
+    workout = Workouts.query.filter_by(
+        id=workout_id,
+        user_id=user_id
+    ).first()
+
+    if not workout:
+        return jsonify({
+            "error": "Workout not found"
+        }), 404
+
+    comment = data.get("comment")
+
+    if not isinstance(comment, str) or not comment.strip() or not comment:
+        return jsonify({
+            "error": "Comment must be provided and must be non-empty string"
+        }), 400
+
+    new_comment = WorkoutComments(
+        workout_id=workout_id,
+        user_id=user_id,
+        comment=comment
+    )
+
+    db.session.add(new_comment)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Comment added successfully",
+        "comment": comment,
+    }), 201
+
+@workout_bp.route('/comments', methods=['GET'])
+@jwt_required()
+def get_workout_comments():
+
+    workout_comments = WorkoutComments.query.all()
+
+    if not workout_comments:
+        return jsonify({
+            "error": "Workout comments not found"
+        }), 404
+
+    result = []
+    for comment in workout_comments:
+        result.append({
+            "id": comment.id,
+            "workout_id": comment.workout_id,
+            "user_id": comment.user_id,
+            "comment": comment.comment,
+            "created_at": comment.created_at,
+        })
+
+    return jsonify({"workout_comments": result}), 200
+
+@workout_bp.route('/workouts/<int:workout_id>/comments/<int:comments_id>', methods=['DELETE'])
+@jwt_required()
+def delete_comments(workout_id, comments_id):
+
+    user_id = int(get_jwt_identity())
+
+    workout_comments = WorkoutComments.query.filter_by(
+        user_id=user_id,
+        workout_id=workout_id,
+        id=comments_id
+    ).first()
+
+    if workout_comments.user_id != user_id:
+        return jsonify({
+            "error": "Forbidden"
+        }), 403
+
+    db.session.delete(workout_comments)
+    db.session.commit()
+
+    return '', 204
